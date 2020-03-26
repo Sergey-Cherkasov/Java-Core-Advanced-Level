@@ -8,10 +8,14 @@ public class Cat implements FitnessClasses {
    private int runDistance;
    private double jumpHeight;
 
-   public Cat(String name, int runDistance) {
+   public Cat(String name, int runDistance, double jumpHeight) {
       this.name = name;
       this.runDistance = runDistance;
-      this.jumpHeight = FitnessClasses.MAX_JUMP_HEIGHT;
+      this.jumpHeight = jumpHeight;
+   }
+
+   public Cat(String name, int runDistance) {
+      this(name, runDistance, FitnessClasses.MAX_JUMP_HEIGHT);
    }
 
    @Override
