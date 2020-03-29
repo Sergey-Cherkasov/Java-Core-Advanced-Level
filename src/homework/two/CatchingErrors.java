@@ -8,25 +8,39 @@ public class CatchingErrors {
       String[][] arrayString2 = {{"1","2","3","4"},{"1","2","3","4"},{"1","2","3","4"}};
       String[][] arrayString3 = {{"1","2","3","4"},{"1","2","3","Four"},{"1","2","3","4"},{"1","2","3","4"}};
 
-      catchSizeErrorException(arrayString1);
-      catchSizeErrorException(arrayString2);
-      catchSizeErrorException(arrayString3);
+      try{
+         printSumArray(arrayString1);
+         printSumArray(arrayString2);
+         printSumArray(arrayString3);
+
+      } catch (MyArraySizeException ex){
+         System.out.println(ex.getMessage());
+//         ex.printStackTrace(); // Uncomment this line to print out stack
+      }
    }
 
-   private static void catchSizeErrorException(String[][] strings) {
+   private static void printSumArray(String[][] strings) {
+      System.out.printf("Array sum = %d%n", getSumArray(strings));
+   }
+
+   private static int getSumArray(String[][] strings) {
+      checkArraySize(strings); // Checking the size of the array
+      int sumArray = 0;
       try {
-         checkArraySize(strings); // Checking the size of the array
-         int sumArray = 0;
          for (int row = 0; row < strings.length; row++) {
             for (int column = 0; column < strings[row].length; column++) {
-               sumArray += checkIntValue(strings[row][column], row, column); // Checking the array values
+               sumArray += elementArray(strings, row, column); // Checking the array values
             }
          }
-         System.out.printf("Array sum = %d%n", sumArray);
-      }catch (MyArraySizeException | MyArrayDataException ex){
+      }catch (MyArrayDataException ex){
          System.out.println(ex.getMessage());
-//         ex.printStackTrace(); // Uncomment this line to display the stack printout
+//         ex.printStackTrace(); // Uncomment this line to print out stack
       }
+      return sumArray;
+   }
+
+   private static int elementArray(String[][] strings, int row, int column) {
+      return checkIntValue(strings[row][column], row, column);
    }
 
    /**
@@ -37,15 +51,11 @@ public class CatchingErrors {
     * @return Value of the Integer type
     * @throws MyArrayDataException if the array value is not correct
     */
-   private static int checkIntValue(String symbol, int row, int column) throws MyArrayDataException{
-      int i = 0;
-      if (symbol.equals(""))
-         throw new MyArrayDataException(symbol, row, column);
-      while (i < symbol.length()){
-         if (!Character.isDigit(symbol.charAt(i))){
-            throw new MyArrayDataException(symbol, row, column);
-         }
-         i++;
+   private static int checkIntValue(String symbol, int row, int column) {
+      try {
+         Integer.parseInt(symbol);
+      }catch(NumberFormatException ex){
+         throw new MyArrayDataException(symbol, row,column);
       }
       return Integer.parseInt(symbol);
    }
@@ -55,23 +65,26 @@ public class CatchingErrors {
     * @param strings String array
     * @throws MyArraySizeException if the array size is not correct
     */
-   public static void checkArraySize(String[][] strings) throws MyArraySizeException {
+   public static void checkArraySize(String[][] strings) {
       if (strings.length != 4){
-         throw new MyArraySizeException();
+         throw new MyArraySizeException(strings.length);
       }
       for (String[] string : strings) {
          if (string.length != 4)
-            throw new MyArraySizeException();
+            throw new MyArraySizeException(strings.length, string.length);
       }
    }
 
    /**
-    * Thrown to indicate that the size of a two-dimensional array is out of range.
+    * Thrown to indicate that the size of an one/two-dimension array is out of range.
     * Applications cannot subclass this class to specify similar exceptions.
     */
    private static final class MyArraySizeException extends RuntimeException {
-      public MyArraySizeException() {
-         super("Wrong size array");
+      public MyArraySizeException(int row) {
+         super("Wrong count array rows: required - [4], provided - [" + row + "]");
+      }
+      public MyArraySizeException(int row, int column) {
+         super("Wrong size array: required size [4][4], provided - [" + row + "][" + column + "]");
       }
    }
 
@@ -80,9 +93,22 @@ public class CatchingErrors {
     * but that the string does not have the appropriate format.
     */
    private static final class MyArrayDataException extends NumberFormatException {
+
+      private String string;
+      private int row;
+      private int column;
+
       public MyArrayDataException(String s, int row, int column) {
-         super("The value '" + s + "' into arrayStrings[" + row + "][" + column + "] is not the Integer");
+         this.string = s;
+         this.row = row;
+         this.column = column;
       }
+
+      @Override
+      public String getMessage(){
+         return "The value '" + string + "' into array element [" + row + "][" + column + "] is not the Integer";
+      }
+
    }
 
 }
