@@ -12,14 +12,9 @@ public class Main {
       String[] arrayWords = {"whisky", "cognac", "vodka", "whisky", "liquor", "cognac", "whisky", "tequila", "wine", "beer", "wine"};
       Set<String> uniqueWords = new HashSet<>(Arrays.asList(arrayWords));
       Map<String, Integer> mapWords = new HashMap<>();
-      for (String uniqueWord : uniqueWords) {
-         int count = 0;
-         for (String word : arrayWords) {
-            if (word.equals(uniqueWord)) {
-               count++;
-            }
-         }
-         mapWords.put(uniqueWord, count);
+      for (String word : arrayWords) {
+         int count = mapWords.getOrDefault(word, 0);
+         mapWords.put(word, count + 1);
       }
       System.out.println("Задание 1.");
       System.out.println("Список слов в массиве: " + Arrays.asList(arrayWords));
