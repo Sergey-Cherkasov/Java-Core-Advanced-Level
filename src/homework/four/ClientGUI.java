@@ -34,7 +34,7 @@ public class ClientGUI extends JFrame {
          textChatArea.append(String.format("%s%n", inputText.getText()));
          clientChatMessage.addRecord(inputText.getName(), inputText.getText());
          inputText.setText("");
-         System.out.println(clientChatMessage.getListMessage());
+         System.out.println(clientChatMessage.getTextMessage());
       }
       inputText.requestFocus();
    }
