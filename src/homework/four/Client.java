@@ -10,11 +10,3 @@ public class Client {
    }
 }
 
-class ClientWindow extends JFrame{
-   ClientWindow(){
-      setTitle("Chat::client");
-      setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-      setBounds(300, 150, 500, 500);
-      setVisible(true);
-   }
-}
