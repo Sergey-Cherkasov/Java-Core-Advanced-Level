@@ -1,18 +1,18 @@
 package homework.four.models;
 
-public class ClientChatMessage {
+public class ClientChatContext {
 
    private String userName;
    private String textMessage;
 
-   private static ClientChatMessage clientChatMessage;
+   private static ClientChatContext clientChatContext;
 
-   private ClientChatMessage(){
+   private ClientChatContext(){
    }
 
-   public static ClientChatMessage getClientChatMessage(){
-      if (clientChatMessage == null) clientChatMessage = new ClientChatMessage();
-      return clientChatMessage;
+   public static ClientChatContext getClientChatContext(){
+      if (clientChatContext == null) clientChatContext = new ClientChatContext();
+      return clientChatContext;
    }
 
    public void addRecord(String userName, String textMessage){

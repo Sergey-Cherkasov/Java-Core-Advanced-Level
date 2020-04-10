@@ -2,10 +2,10 @@ package homework.four;
 
 import javax.swing.*;
 
-public class Client {
+public class ChatClient {
 
    public static void main(String[] args) {
-      SwingUtilities.invokeLater(ClientGUI::new);
+      SwingUtilities.invokeLater(ChatClientGUI::new);
       System.out.println("Main thread stop.");
    }
 }
