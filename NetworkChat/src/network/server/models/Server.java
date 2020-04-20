@@ -1,7 +1,7 @@
 package network.server.models;
 
 import network.server.handlers.AuthenticationService;
-import network.client.handlers.ClientHandler;
+import network.client.handlers.ChatHandler;
 import network.server.handlers.AuthenticationServiceInterface;
 
 import java.io.IOException;
@@ -10,12 +10,14 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
 
+/** Класс Server создает экземпляр сервера для обмена сообщениями с данными между клиентами. */
+
 public class Server {
 
    private static Server server;
    private final int port;
    private AuthenticationServiceInterface authenticationServiceInterface;
-   private List<ClientHandler> clients;
+   private List<ChatHandler> clients;
 
 
    private Server(){
@@ -37,6 +39,10 @@ public class Server {
       return server;
    }
 
+   /**
+    * Метод осуществляет инициализацию сервера и ожидает подключения клиента.
+    * При подключении клиента создает экземпляр обработчика действий клиента.
+    */
    public void initConnection(){
       try(ServerSocket serverSocket = new ServerSocket(port)) {
          authenticationServiceInterface = new AuthenticationService();
@@ -46,7 +52,7 @@ public class Server {
             System.out.println("Сервер ожидает подключения клиента");
             Socket socket = serverSocket.accept();
             System.out.println("Клиент подключился");
-            new ClientHandler(this, socket);
+            new ChatHandler(this, socket);
          }
       } catch (IOException e) {
          e.printStackTrace();
@@ -61,8 +67,14 @@ public class Server {
       return authenticationServiceInterface;
    }
 
+   /**
+    * Метод осуществляет проверку имени пользователя на существование
+    * @param userName имя пользователя
+    * @return true - если имя пользователя совпадает с уже имеющимися именами пользователей в списке,
+    * false - если имя пользователя нет в списке
+    */
    public synchronized boolean isUserNameBusy(String userName) {
-      for (ClientHandler client : clients) {
+      for (ChatHandler client : clients) {
          if (client.getName().equals(userName)){
             return true;
          }
@@ -70,16 +82,28 @@ public class Server {
       return false;
    }
 
-   public synchronized void unsubscribe(ClientHandler client) {
+   /**
+    * Метод осуществляет отписку клиента на получение сообщений
+    * @param client объект типа ChatHandler
+    */
+   public synchronized void unsubscribe(ChatHandler client) {
       clients.remove(client);
    }
 
-   public synchronized void subscribe(ClientHandler client) {
+   /**
+    * Метод осуществляет подписку клиента на получение сообщений
+    * @param client объект типа ChatHandler
+    */
+   public synchronized void subscribe(ChatHandler client) {
       clients.add(client);
    }
 
+   /**
+    * Метод осуществляет широковещательную отправку всем клиентам, подключенным к серверу
+    * @param message текст с данными, отправляемый подключенным клиентам.
+    */
    public synchronized void broadcastMessage(String message) {
-      for (ClientHandler client : clients){
+      for (ChatHandler client : clients){
          client.sendMessage(message);
       }
    }

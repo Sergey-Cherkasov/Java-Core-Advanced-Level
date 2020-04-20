@@ -3,9 +3,12 @@ package network.server.handlers;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Класс аутентификации клиентов
+ */
 public class AuthenticationService implements AuthenticationServiceInterface{
 
-   private List<DataUsers> dataUsersList;
+   private final List<DataUsers> dataUsersList;
 
    @Override
    public void start() {
@@ -24,6 +27,13 @@ public class AuthenticationService implements AuthenticationServiceInterface{
       dataUsersList.add(new DataUsers("McGregor", "pass3", "McGregor"));
    }
 
+   /**
+    * Метод осуществляет проверку введенных логина/пароля. Возвращает имя пользователя
+    * при успешной проверке логина/пароля, либо null.
+    * @param login логин пользователя
+    * @param password пароль пользователя
+    * @return имя пользователя, либо null.
+    */
    @Override
    public String getUserNameByLoginPassword(String login, String password) {
       for (DataUsers user : dataUsersList) {
@@ -34,10 +44,13 @@ public class AuthenticationService implements AuthenticationServiceInterface{
       return null;
    }
 
-   private class DataUsers{
-      private String login;
-      private String password;
-      private String userName;
+   /**
+    * Внутреннй клас, описывающий модель данных клиента (логин/пароль/имя пользователя)
+    */
+   private static class DataUsers{
+      private final String login;
+      private final String password;
+      private final String userName;
 
       public DataUsers(String login, String password, String userName){
          this.login = login;
