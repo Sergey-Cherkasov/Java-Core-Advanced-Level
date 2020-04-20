@@ -1,6 +1,11 @@
-package network.client.models;
+package network.client.view;
+
+import network.client.controller.ClientController;
 
 import javax.swing.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.io.IOException;
 
 public class ClientGUI extends JFrame {
    private JTextField textField;
@@ -11,13 +16,16 @@ public class ClientGUI extends JFrame {
    private JTextArea textArea;
    private JTextField inputText;
 
+   private ClientController clientController;
+
    String[] userNameList = new String[]{"Jack", "Bob", "Frank", "Alice"};
    DefaultListModel<String> listModel = new DefaultListModel<>();
 
-   public ClientGUI() {
+   public ClientGUI(ClientController clientController) {
+      this.clientController = clientController;
       initClientWindow();
       initUserList();
-      setVisible(true);
+//      setVisible(true);
       inputText.requestFocus();
    }
 
@@ -34,12 +42,24 @@ public class ClientGUI extends JFrame {
       setSize(500,500);
       setLocationRelativeTo(null);
       sendButton.setText("Send");
-      sendButton.addActionListener(e -> sendMessage());
-      inputText.addActionListener(e -> sendMessage());
+      sendButton.addActionListener(e -> {
+         try {
+            ClientGUI.this.sendMessage();
+         } catch (IOException ioException) {
+            ioException.printStackTrace();
+         }
+      });
+      inputText.addActionListener(e -> {
+         try {
+            sendMessage();
+         } catch (IOException ioException) {
+            ioException.printStackTrace();
+         }
+      });
       setContentPane(mainPanel);
    }
 
-   private void sendMessage() {
+   private void sendMessage() throws IOException {
       String textMessage = inputText.getText().trim();
       if (textMessage.isEmpty()) {
          return;
@@ -48,6 +68,7 @@ public class ClientGUI extends JFrame {
       String selectedUserName = userList.getSelectedValue();
       if (selectedUserName != null){
          appendMessageIntoTextChatArea(selectedUserName, textMessage);
+         clientController.sendMessage(textMessage);
       }
 //      clientContext.addRecord(selectedUserName, textMessage);
       inputText.setText(null);
@@ -59,9 +80,11 @@ public class ClientGUI extends JFrame {
       textArea.append(formattedMessage);
    }
 
-   private void appendOwnMessageIntoTextChatArea(String textMessage) {
-      String formattedMessage = String.format("%s -> %s: %s%n", "Я", "All", textMessage);
-      textArea.append(formattedMessage);
+   public void appendOwnMessageIntoTextChatArea(String textMessage) {
+      SwingUtilities.invokeLater(() -> {
+         String formattedMessage = String.format("%s -> %s: %s%n", "Я", "All", textMessage);
+         textArea.append(formattedMessage);
+      });
    }
 
 }

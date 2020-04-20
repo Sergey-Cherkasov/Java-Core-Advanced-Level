@@ -1,17 +1,23 @@
 package network.client;
 
-import network.client.handlers.ClientHandler;
-import network.client.models.AuthForm;
+import network.client.controller.ClientController;
 
-import javax.swing.*;
+import java.io.IOException;
 
 public class ClientApplication {
 
+   private static final String HOST_NAME = "localhost";
+   private static final int PORT_TO_CONNECT = 82_83;
+
    public static void main(String[] args) {
 
-      ClientHandler clientHandler = new ClientHandler();
-      clientHandler.initConnection();
-      clientHandler.startIdentification();
+      try {
+         ClientController clientController = new ClientController(HOST_NAME, PORT_TO_CONNECT);
+         clientController.initConnection();
+      } catch (IOException e) {
+         e.printStackTrace();
+      }
+      //      clientController.startIdentification();
 
 //      SwingUtilities.invokeLater(ClientGUI::new);
 //      SwingUtilities.invokeLater(AuthForm::new);

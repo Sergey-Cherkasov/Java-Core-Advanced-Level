@@ -1,4 +1,4 @@
-package network.server.handlers;
+package network.auth;
 
 public interface AuthenticationServiceInterface {
    void start();
