@@ -25,9 +25,6 @@ public class AuthenticationService implements AuthenticationServiceInterface{
       System.out.println("Authentication service has been stopped");
    }
 
-   public AuthenticationService(){
-   }
-
    /**
     * Метод возвращает имя пользователя при совпадении логина/пароля, либо null.
     * @param login логин пользователя

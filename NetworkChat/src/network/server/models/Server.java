@@ -1,16 +1,20 @@
 package network.server.models;
 
+import network.Command;
 import network.auth.AuthenticationService;
-import network.client.handlers.ClientHandler;
 import network.auth.AuthenticationServiceInterface;
+import network.client.handlers.ClientHandler;
 
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
-/** Класс Server создает экземпляр сервера для обмена сообщениями с данными между клиентами. */
+/**
+ * Класс Server создает экземпляр сервера для обмена сообщениями с данными между клиентами.
+ */
 
 public class Server {
 
@@ -20,13 +24,13 @@ public class Server {
    private final List<ClientHandler> clients;
 
 
-   private Server(){
+   private Server() {
       this.port = 82_83;
       this.clients = new ArrayList<>();
       this.authenticationServiceInterface = new AuthenticationService();
    }
 
-   private Server(int port){
+   private Server(int port) {
       this.port = port;
       this.clients = new ArrayList<>();
       this.authenticationServiceInterface = new AuthenticationService();
@@ -34,9 +38,9 @@ public class Server {
 
    public static Server getServer(int... port) {
       if (server == null) {
-         if (port.length != 0){
+         if (port.length != 0) {
             server = new Server(port[0]);
-         }else{
+         } else {
             server = new Server();
          }
       }
@@ -47,20 +51,19 @@ public class Server {
     * Метод осуществляет инициализацию сервера и ожидает подключения клиента.
     * При подключении клиента создает экземпляр обработчика действий клиента.
     */
-   public void initConnection(){
-      try(ServerSocket serverSocket = new ServerSocket(port)) {
+   public void initConnection() {
+      try (ServerSocket serverSocket = new ServerSocket(port)) {
          authenticationServiceInterface.start();
-         while (true){
+         while (true) {
             System.out.println("Сервер ожидает подключения клиента");
-            Socket socket = serverSocket.accept();
+            Socket clientSocket = serverSocket.accept();
             System.out.println("Клиент подключился");
-            ClientHandler handler = new ClientHandler(this, socket);
+            ClientHandler handler = new ClientHandler(this, clientSocket);
             try {
                handler.handle();
             } catch (IOException e) {
                System.err.println("Failed to handle client connection");
-               socket.close();
-               e.printStackTrace();
+               clientSocket.close();
             }
          }
       } catch (IOException e) {
@@ -71,19 +74,20 @@ public class Server {
       }
    }
 
-   public AuthenticationServiceInterface getAuthenticationServiceInterface(){
+   public AuthenticationServiceInterface getAuthenticationServiceInterface() {
       return authenticationServiceInterface;
    }
 
    /**
     * Метод осуществляет проверку имени пользователя на существование
+    *
     * @param userName имя пользователя
     * @return true - если имя пользователя совпадает с уже имеющимися именами пользователей в списке,
     * false - если имя пользователя нет в списке
     */
-   public synchronized boolean isUserNameBusy(String userName) {
+   public boolean isUserNameBusy(String userName) {
       for (ClientHandler client : clients) {
-         if (client.getName().equals(userName)){
+         if (client.getName().equals(userName)) {
             return true;
          }
       }
@@ -92,35 +96,55 @@ public class Server {
 
    /**
     * Метод осуществляет отписку клиента на получение сообщений
+    *
     * @param client объект типа ClientHandler
     */
-   public synchronized void unsubscribe(ClientHandler client) {
+   public synchronized void unsubscribe(ClientHandler client) throws IOException {
       clients.remove(client);
+      List<String> users = getAllUsernames();
+      broadcastMessage(Command.updateUsersListCommand(users));
    }
 
    /**
     * Метод осуществляет подписку клиента на получение сообщений
+    *
     * @param client объект типа ClientHandler
     */
-   public synchronized void subscribe(ClientHandler client) {
+   public synchronized void subscribe(ClientHandler client) throws IOException {
       clients.add(client);
+      List<String> users = getAllUsernames();
+      broadcastMessage(Command.updateUsersListCommand(users));
    }
 
    /**
     * Метод осуществляет широковещательную отправку всем клиентам, подключенным к серверу
-    * @param message текст с данными, отправляемый подключенным клиентам.
+    *
+    * @param command текст с данными, отправляемый подключенным клиентам.
     */
-   public synchronized void broadcastMessage(String message) {
-      for (ClientHandler client : clients){
-         client.sendMessage(message);
+   public synchronized void broadcastMessage(Command command) throws IOException {
+      for (ClientHandler client : clients) {
+         client.sendMessage(command);
       }
    }
 
-   public void sendPrivateMessage(String name, String nickname, String textMessage) {
+   public synchronized void sendPrivateMessage(String receiverUserName, Command command) throws IOException {
       for (ClientHandler client : clients) {
-         if (client.getName().equals(nickname)){
-            client.sendMessage(String.format("%s: %s", name, textMessage));
+         if (client.getName().equals(receiverUserName)) {
+            client.sendMessage(command);
+            return;
          }
       }
    }
+
+   private List<String> getAllUsernames() {
+      return clients.stream().map(ClientHandler::getName).collect(Collectors.toList());
+/*
+      List<String> result = new ArrayList<>();
+      for (ClientHandler client : clients) {
+         result.add(client.getName());
+      }
+      return result;
+*/
+   }
+
 }

@@ -1,15 +1,17 @@
 package network.client.handlers;
 
-import network.ExtraClass;
+import network.Command;
+import network.CommandType;
 import network.auth.AuthenticationServiceInterface;
+import network.commands.AuthCommand;
+import network.commands.BroadcastMessageCommand;
+import network.commands.PrivateMessageCommand;
 import network.server.models.Server;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
-
-import static network.ExtraClass.*;
 
 /**
  * Класс обработчика действий клиента
@@ -17,19 +19,21 @@ import static network.ExtraClass.*;
 public class ClientHandler {
    private final Server server;
    private final Socket socket;
-   private DataInputStream inputStream;
-   private DataOutputStream outputStream;
+   private ObjectInputStream inputStream;
+   private ObjectOutputStream outputStream;
 
    private String name;
 
    private final AuthenticationServiceInterface authenticationServiceInterface;
+
    /**
     * Конструктор обработчика действий клиента запускает аутентификацию и метод чтения сообщений
     * в отдельном потоке.
+    *
     * @param server экземпляр запущенного сервера
     * @param socket экземпляр сокета
     */
-   public ClientHandler(Server server, Socket socket){
+   public ClientHandler(Server server, Socket socket) {
       this.server = server;
       this.socket = socket;
       this.authenticationServiceInterface = server.getAuthenticationServiceInterface();
@@ -39,101 +43,134 @@ public class ClientHandler {
     * Метод осуществляет закрытие соединения и освобождение ресурсов
     */
    private void closeConnection() {
-      server.unsubscribe(this);
-      server.broadcastMessage(name + " вышел из чата");
-      try{
-         inputStream.close();
-         outputStream.close();
+      try {
+         server.unsubscribe(this);
+         server.broadcastMessage(Command.broadcastMessageCommand(name + " вышел из чата"));
+         //         inputStream.close();
+         //         outputStream.close();
          socket.close();
-      }catch (IOException e){
+      } catch (IOException e) {
          System.err.println(e.getMessage());
       }
    }
 
    /**
     * Метод осуществляет чтение сообщений, полученных от сервера
-    * @throws IOException может вызвать исключение IOException.
     */
    private void readMessages() throws IOException {
-      while (true){
-         String stringDataFromClient = inputStream.readUTF();
-         System.out.println(name + ": " + stringDataFromClient);
-         if (stringDataFromClient.startsWith(END_CMD)){
-            return;
-         } else if (stringDataFromClient.startsWith(PRIVATE_CMD)){
-            String[] splitMessageParts = stringDataFromClient.split("\\s+");
-            server.sendPrivateMessage(name, splitMessageParts[1], splitMessageParts[2]);
+      while (true) {
+         Command command = readCommand();
+         if (command == null) {
             continue;
          }
-         server.broadcastMessage(String.format("%s: %s", name, stringDataFromClient));
+         switch (command.getType()) {
+            case CMD_END:
+               return;
+            case CMD_BROADCAST_MESSAGE:
+               BroadcastMessageCommand data = (BroadcastMessageCommand) command.getData();
+               server.broadcastMessage(Command.messageCommand(name, data.getMessage()));
+               break;
+            case CMD_PRIVATE_MESSAGE:
+               PrivateMessageCommand privateMessageCommand = (PrivateMessageCommand) command.getData();
+               String receiver = privateMessageCommand.getReceiver();
+               String message = privateMessageCommand.getMessage();
+               server.sendPrivateMessage(receiver, Command.messageCommand(name, message));
+               break;
+            default:
+               String errorMessage = "Unknown type of command : " + command.getType();
+               System.err.println(errorMessage);
+               sendMessage(Command.errorCommand(errorMessage));
+         }
+      }
+   }
+
+   private Command readCommand() throws IOException {
+      try {
+         return (Command) inputStream.readObject();
+      } catch (ClassNotFoundException e) {
+         String errorMessage = "Unknown type of object from client!";
+         System.err.println(errorMessage);
+         e.printStackTrace();
+         sendMessage(Command.errorCommand(errorMessage));
+         return null;
       }
    }
 
    /**
     * Метод аутентификации клиента
-    * @throws IOException может вызвать исключение IOException
     */
    private void authentication() throws IOException {
-      while (true){
-         String stringWithData = inputStream.readUTF();
-         if (stringWithData.startsWith(AUTH_CMD)){
-            String[] splitDataStrings = stringWithData.split("\\s+");
-            String userName = authenticationServiceInterface
-                    .getUserNameByLoginPassword(splitDataStrings[1], splitDataStrings[2]);
-            if (userName == null){
-               sendMessage("Неверные логин/пароль");
-            }else if (server.isUserNameBusy(userName)){
-               sendMessage("Учетная запись уже испоьзуется");
-            } else{
-               sendMessage(AUTH_SUCCESSFULLY + " " + userName);
-               setName(userName);
-               server.broadcastMessage(name + " зашел в чат");
-               server.subscribe(this);
-               break;
+      while (true) {
+         Command command = readCommand();
+
+         if (command == null) {
+            continue;
+         }
+
+         if (command.getType() == CommandType.CMD_AUTH) {
+            if (processAuthCommand(command)) {
+               return;
             }
+         } else {
+            String errorMessage = "Illegal command for authentication: " + command.getType();
+            System.err.println(errorMessage);
+            sendMessage(Command.errorCommand(errorMessage));
          }
       }
    }
 
-   /**
-    * Метод осуществляет отправку сообщения на сервер
-    * @param message текст с данными сообщения
-    */
-   public void sendMessage(String message) {
-      try{
-         outputStream.writeUTF(message);
-      }catch (IOException e){
-         System.err.println(e.getMessage());
+   private boolean processAuthCommand(Command command) throws IOException {
+      AuthCommand authCommand = (AuthCommand) command.getData();
+      String login = authCommand.getLogin();
+      String password = authCommand.getPassword();
+      String nickname = authenticationServiceInterface.getUserNameByLoginPassword(login, password);
+      if (nickname == null) {
+         sendMessage(Command.authErrorCommand("Неверные логин/пароль!"));
+      } else if (server.isUserNameBusy(nickname)) {
+         sendMessage(Command.authErrorCommand("Учетная запись уже используется!"));
+      } else {
+         authCommand.setUsername(nickname);
+         sendMessage(command);
+         setName(nickname);
+         server.broadcastMessage(Command.messageCommand(null, nickname + " Зашел в чат!"));
+         server.subscribe(this);
+         return true;
       }
+      return false;
    }
 
-   public void handle() throws IOException{
-      try {
-         inputStream = new DataInputStream(socket.getInputStream());
-         outputStream = new DataOutputStream(socket.getOutputStream());
+   /**
+    * Метод осуществляет отправку сообщения на сервер
+    *
+    * @param command текст с данными сообщения
+    */
+   public void sendMessage(Command command) throws IOException {
+      outputStream.writeObject(command);
+   }
 
-         new Thread(() ->{
-            try{
-               authentication();
-               readMessages();
-            }catch (IOException e){
-               System.err.println(e.getMessage());
-            }finally {
-               closeConnection();
-            }
-         }).start();
+   public void handle() throws IOException {
+      inputStream = new ObjectInputStream(socket.getInputStream());
+      outputStream = new ObjectOutputStream(socket.getOutputStream());
 
-      } catch (IOException e) {
-         e.printStackTrace();
-      }
-      this.name = "";
+      new Thread(() -> {
+         try {
+            authentication();
+            readMessages();
+         } catch (IOException e) {
+            System.out.println("Connect has been failed.");
+            System.err.println(e.getMessage());
+         } finally {
+            closeConnection();
+         }
+      }).start();
+      //      this.name = "";
    }
 
    private void setName(String name) {
       this.name = name;
    }
 
-   public String getName(){
+   public String getName() {
       return name;
    }
 

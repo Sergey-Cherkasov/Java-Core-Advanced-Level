@@ -1,23 +1,31 @@
 package network.client.controller;
 
+import network.Command;
 import network.client.model.ClientService;
 import network.client.view.AuthForm;
 import network.client.view.ClientGUI;
 
 import javax.swing.*;
 import java.io.IOException;
+import java.util.List;
 
 public class ClientController {
 
 
-   private final ClientService clientService;
+   private static final String ALL_USERS_LIST_ITEM = "All";
+   private static ClientService clientService;
    private final AuthForm authForm;
    private final ClientGUI clientGUI;
+   private String userName;
 
    public ClientController(String serverHost, int serverPort) {
-      this.clientService = ClientService.getClientService(serverHost, serverPort);
+      clientService = ClientService.getClientService(serverHost, serverPort, this);
       this.authForm = new AuthForm(this);
       this.clientGUI = new ClientGUI(this);
+   }
+
+   public static void shutdown() {
+      clientService.close();
    }
 
 
@@ -27,8 +35,8 @@ public class ClientController {
    }
 
    private void runAuthProcess() {
-      clientService.setSuccessfulAuthEvent(userName -> {
-         ClientController.this.setUserName(userName);
+      clientService.setSuccessfulAuthEvent (nickname -> {
+         ClientController.this.setUserName(nickname);
          ClientController.this.openChat();
       });
       authForm.setVisible(true);
@@ -36,12 +44,17 @@ public class ClientController {
 
    private void openChat() {
       authForm.dispose();
-      clientService.setMessageHandler(clientGUI::appendOwnMessageIntoTextChatArea);
+      clientService.setMessageHandler(clientGUI::appendMessageIntoTextChatArea);
       clientGUI.setVisible(true);
    }
 
    private void setUserName(String userName) {
       SwingUtilities.invokeLater(() -> clientGUI.setTitle(userName));
+      this.userName = userName;
+   }
+
+   public String getUserName(){
+      return userName;
    }
 
    private void connectToServer() throws IOException {
@@ -53,15 +66,40 @@ public class ClientController {
       }
    }
 
-   public void sendAuthMessage(String login, String password) throws IOException {
-      clientService.sendAuthMessage(login, password);
+   public void sendAuthMessage(String login, String password) {
+      sendCommand(Command.authCommand(login, password));
+   }
+
+   private void sendCommand(Command command) {
+      try {
+         clientService.sendCommand(command);
+      } catch (IOException e) {
+         showErrorMessage(e.getMessage());
+      }
    }
 
    public void sendMessage(String textMessage) {
-      try {
-         clientService.sendMessage(textMessage);
-      } catch (IOException e) {
-         e.printStackTrace();
-      }
+      sendCommand(Command.broadcastMessageCommand(textMessage));
    }
+
+   public void sendPrivateMessage(String selectedUserName, String textMessage) {
+      sendCommand(Command.privateMessageCommand(selectedUserName, textMessage));
+//      sendMessage(String.format("/w %s %s", selectedUserName, textMessage));
+   }
+
+   public void updateUsersList(List<String> users) {
+      users.remove(userName);
+      users.add(0, ALL_USERS_LIST_ITEM);
+      clientGUI.updateUsers(users);
+   }
+
+   public void showErrorMessage(String errorMessage) {
+      if (clientGUI.isActive()) {
+         clientGUI.showError(errorMessage);
+      } else if (authForm.isActive()) {
+         authForm.showError(errorMessage);
+      }
+      System.err.println(errorMessage);
+   }
+
 }

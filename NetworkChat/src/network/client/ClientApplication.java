@@ -17,10 +17,6 @@ public class ClientApplication {
       } catch (IOException e) {
          e.printStackTrace();
       }
-      //      clientController.startIdentification();
-
-//      SwingUtilities.invokeLater(ClientGUI::new);
-//      SwingUtilities.invokeLater(AuthForm::new);
    }
 
 }

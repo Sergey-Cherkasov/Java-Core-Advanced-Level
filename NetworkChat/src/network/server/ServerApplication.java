@@ -2,7 +2,9 @@ package network.server;
 
 import network.server.models.Server;
 
-/** Основной класс для запуска сервера */
+/**
+ * Основной класс для запуска сервера
+ */
 
 public class ServerApplication {
 

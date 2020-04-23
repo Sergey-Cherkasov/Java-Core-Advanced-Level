@@ -3,88 +3,80 @@ package network.client.view;
 import network.client.controller.ClientController;
 
 import javax.swing.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.io.IOException;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
+import java.util.List;
 
 public class ClientGUI extends JFrame {
-   private JTextField textField;
    private JButton sendButton;
    private JPanel mainPanel;
    private JList<String> userList;
-   private JPanel userListPanel;
    private JTextArea textArea;
    private JTextField inputText;
+   private JPanel userListPanel;
 
-   private ClientController clientController;
-
-   String[] userNameList = new String[]{"Jack", "Bob", "Frank", "Alice"};
-   DefaultListModel<String> listModel = new DefaultListModel<>();
+   private final ClientController clientController;
 
    public ClientGUI(ClientController clientController) {
       this.clientController = clientController;
       initClientWindow();
-      initUserList();
-//      setVisible(true);
       inputText.requestFocus();
    }
 
-   private void initUserList() {
-      for (String userName : userNameList) {
-         listModel.add(0, userName);
-      }
-      userList.setModel(listModel);
-   }
-
    private void initClientWindow() {
-      setTitle("Network chat::client");
       setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-      setSize(500,500);
+      setTitle(clientController.getUserName());
+      setSize(500, 500);
       setLocationRelativeTo(null);
       sendButton.setText("Send");
-      sendButton.addActionListener(e -> {
-         try {
-            ClientGUI.this.sendMessage();
-         } catch (IOException ioException) {
-            ioException.printStackTrace();
-         }
-      });
-      inputText.addActionListener(e -> {
-         try {
-            sendMessage();
-         } catch (IOException ioException) {
-            ioException.printStackTrace();
+      sendButton.addActionListener(e -> ClientGUI.this.sendMessage());
+      inputText.addActionListener(e -> sendMessage());
+      addWindowListener(new WindowAdapter() {
+         public void windowClosing(WindowEvent e) {
+            ClientController.shutdown();
          }
       });
       setContentPane(mainPanel);
    }
 
-   private void sendMessage() throws IOException {
+   private void sendMessage() {
       String textMessage = inputText.getText().trim();
       if (textMessage.isEmpty()) {
          return;
       }
       appendOwnMessageIntoTextChatArea(textMessage);
-      String selectedUserName = userList.getSelectedValue();
-      if (selectedUserName != null){
-         appendMessageIntoTextChatArea(selectedUserName, textMessage);
+
+      if (userList.getSelectedIndex() < 1) {
          clientController.sendMessage(textMessage);
+      } else {
+         String selectedUserName = userList.getSelectedValue();
+         clientController.sendPrivateMessage(selectedUserName, textMessage);
       }
-//      clientContext.addRecord(selectedUserName, textMessage);
       inputText.setText(null);
-      System.out.println(String.format("%s: %s", selectedUserName, textMessage));
    }
 
-   private void appendMessageIntoTextChatArea(String selectedUserName, String textMessage) {
-      String formattedMessage = String.format("%s -> %s: %s%n", "Я", selectedUserName, textMessage);
-      textArea.append(formattedMessage);
-   }
-
-   public void appendOwnMessageIntoTextChatArea(String textMessage) {
+   public void appendMessageIntoTextChatArea(String textMessage) {
       SwingUtilities.invokeLater(() -> {
-         String formattedMessage = String.format("%s -> %s: %s%n", "Я", "All", textMessage);
-         textArea.append(formattedMessage);
+         textArea.append(textMessage);
+         textArea.append(System.lineSeparator());
       });
    }
 
+   public void appendOwnMessageIntoTextChatArea(String textMessage) {
+      appendMessageIntoTextChatArea("Я: " + textMessage);
+   }
+
+   public void updateUsers(List<String> users) {
+      SwingUtilities.invokeLater(() -> {
+         DefaultListModel<String> model = new DefaultListModel<>();
+         for (String userName : users) {
+            model.addElement(userName);
+         }
+         userList.setModel(model);
+      });
+   }
+
+   public void showError(String errorMessage) {
+      JOptionPane.showMessageDialog(this, errorMessage);
+   }
 }

@@ -3,7 +3,8 @@ package network.client.view;
 import network.client.controller.ClientController;
 
 import javax.swing.*;
-import java.io.IOException;
+import java.awt.event.WindowAdapter;
+import java.awt.event.WindowEvent;
 
 public class AuthForm extends JFrame {
 
@@ -13,22 +14,29 @@ public class AuthForm extends JFrame {
    private JTextField loginTextField;
    private JPasswordField passwordTextField;
 
-   private ClientController clientController;
+   private final ClientController clientController;
 
-   public AuthForm(ClientController clientController){
+   public AuthForm(ClientController clientController) {
       this.clientController = clientController;
       initAuthWindow();
-//      setVisible(true);
    }
 
    private void initAuthWindow() {
       setTitle("Network chat::Authorization");
       setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
-      setSize(300,175);
+      setSize(300, 175);
       setResizable(false);
       setLocationRelativeTo(null);
       okButton.addActionListener(e -> onOkButton());
       cancelButton.addActionListener(e -> onCancelButton());
+      getRootPane().setDefaultButton(okButton);
+      setDefaultCloseOperation(DO_NOTHING_ON_CLOSE);
+      addWindowListener(new WindowAdapter() {
+         @Override
+         public void windowClosing(WindowEvent e) {
+            onCancelButton();
+         }
+      });
       setContentPane(mainPanel);
    }
 
@@ -39,12 +47,10 @@ public class AuthForm extends JFrame {
    private void onOkButton() {
       String login = loginTextField.getText().trim();
       String pass = new String(passwordTextField.getPassword()).trim();
-      try {
-         clientController.sendAuthMessage(login, pass);
-      } catch (IOException e) {
-         JOptionPane.showMessageDialog(this, "Ошибка при попытки аутентификации");
-      }
+      clientController.sendAuthMessage(login, pass);
    }
 
-
+   public void showError(String errorMessage) {
+      JOptionPane.showMessageDialog(this, errorMessage);
+   }
 }

@@ -1,44 +1,51 @@
 package network.client.model;
 
-import network.ExtraClass;
+import network.Command;
 import network.client.controller.AuthEvent;
+import network.client.controller.ClientController;
+import network.commands.AuthCommand;
+import network.commands.ErrorCommand;
+import network.commands.MessageCommand;
+import network.commands.UpdateUsersListCommand;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
 import java.net.Socket;
+import java.util.List;
 import java.util.function.Consumer;
 
 public class ClientService {
 
    private final String serverHost;
    private final int serverPort;
-   private static DataInputStream inputStream;
-   private static DataOutputStream outputStream;
+   private static ObjectInputStream inputStream;
+   private static ObjectOutputStream outputStream;
 
    private static ClientService clientService;
    private Socket clientSocket;
-   private String userName;
 
    private Consumer<String> messageHandler;
    private AuthEvent successfulAuthEvent;
+   private final ClientController clientController;
 
-   private ClientService(String serverHost, int serverPort) {
+   private ClientService(String serverHost, int serverPort, ClientController clientController) {
       this.serverHost = serverHost;
       this.serverPort = serverPort;
+      this.clientController = clientController;
    }
 
-   public static ClientService getClientService(String serverHost, int serverPort) {
+   public static ClientService getClientService(String serverHost, int serverPort, ClientController clientController) {
       if (clientService == null) {
-         clientService = new ClientService(serverHost, serverPort);
+         clientService = new ClientService(serverHost, serverPort, clientController);
       }
       return clientService;
    }
 
    public void connect() throws IOException {
       clientSocket = new Socket(serverHost, serverPort);
-      inputStream = new DataInputStream(clientSocket.getInputStream());
-      outputStream = new DataOutputStream(clientSocket.getOutputStream());
+      outputStream = new ObjectOutputStream(clientSocket.getOutputStream());
+      inputStream = new ObjectInputStream(clientSocket.getInputStream());
       runReadThread();
    }
 
@@ -46,30 +53,78 @@ public class ClientService {
       new Thread(() -> {
          while (true) {
             try {
-               String message = inputStream.readUTF();
-               if (message.startsWith(ExtraClass.AUTH_SUCCESSFULLY)) {
-                  String[] splitMessageStrings = message.split("\\s+", 2);
-                  System.out.println(splitMessageStrings[0]);
-                  userName = splitMessageStrings[1];
-                  successfulAuthEvent.authIsSuccessful(userName);
-               } else if (messageHandler != null) {
-                  messageHandler.accept(message);
-               }
+               Command command = (Command) inputStream.readObject();
+               processCommand(command);
             } catch (IOException e) {
-               e.printStackTrace();
+               System.out.println("Поток чтения был прерван.");
                return;
+            } catch (ClassNotFoundException e) {
+               e.printStackTrace();
             }
          }
       }).start();
    }
 
-   public void sendAuthMessage(String login, String password) throws IOException {
-      outputStream.writeUTF(ExtraClass.AUTH_CMD + " " + login + " " + password);
+   private void processCommand(Command command) {
+
+      switch (command.getType()) {
+         case CMD_AUTH: {
+            processAuthCommand(command);
+            break;
+         }
+         case CMD_MESSAGE: {
+            processMessageCommand(command);
+            break;
+         }
+         case CMD_AUTH_ERROR:
+         case CMD_ERROR: {
+            processErrorCommand(command);
+            break;
+         }
+         case CMD_UPDATE_USERS_LIST: {
+            UpdateUsersListCommand data = (UpdateUsersListCommand) command.getData();
+            List<String> users = data.getUsers();
+            clientController.updateUsersList(users);
+            break;
+         }
+         default:
+            System.err.println("Unknown type of command: " + command.getType());
+      }
+
    }
 
-   public void sendMessage(String message) throws IOException {
-      outputStream.writeUTF(message);
+   private void processErrorCommand(Command command) {
+      ErrorCommand data = (ErrorCommand) command.getData();
+      clientController.showErrorMessage(data.getErrorMessage());
    }
+
+   private void processMessageCommand(Command command) {
+      MessageCommand data = (MessageCommand) command.getData();
+      if (messageHandler != null) {
+         String message = data.getMessage();
+         String username = data.getUsername();
+         if (username != null) {
+            message = username + ": " + message;
+         }
+         messageHandler.accept(message);
+      }
+   }
+
+   private void processAuthCommand(Command command) {
+      AuthCommand data = (AuthCommand) command.getData();
+      String nickname = data.getUsername();
+      successfulAuthEvent.authIsSuccessful(nickname);
+   }
+
+/*
+   public void sendAuthMessage(Command command) throws IOException {
+      outputStream.writeObject(command);
+   }
+
+   public void sendMessage(Command command) throws IOException {
+      outputStream.writeObject(command);
+   }
+*/
 
    public void setMessageHandler(Consumer<String> messageHandler) {
       this.messageHandler = messageHandler;
@@ -81,10 +136,14 @@ public class ClientService {
 
    public void close() {
       try {
+         sendCommand(Command.endCommand());
          clientSocket.close();
       } catch (IOException e) {
          e.printStackTrace();
       }
    }
 
+   public void sendCommand(Command command) throws IOException {
+      outputStream.writeObject(command);
+   }
 }
