@@ -1,9 +1,9 @@
 package network.server.models;
 
-import network.Command;
+import network.common.Command;
 import network.auth.AuthenticationService;
 import network.auth.AuthenticationServiceInterface;
-import network.client.handlers.ClientHandler;
+import network.server.handlers.ClientHandler;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -138,13 +138,6 @@ public class Server {
 
    private List<String> getAllUsernames() {
       return clients.stream().map(ClientHandler::getName).collect(Collectors.toList());
-/*
-      List<String> result = new ArrayList<>();
-      for (ClientHandler client : clients) {
-         result.add(client.getName());
-      }
-      return result;
-*/
    }
 
 }

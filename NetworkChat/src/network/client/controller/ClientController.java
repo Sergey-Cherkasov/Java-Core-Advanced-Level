@@ -1,6 +1,6 @@
 package network.client.controller;
 
-import network.Command;
+import network.common.Command;
 import network.client.model.ClientService;
 import network.client.view.AuthForm;
 import network.client.view.ClientGUI;

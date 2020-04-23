@@ -1,11 +1,11 @@
-package network.client.handlers;
+package network.server.handlers;
 
-import network.Command;
-import network.CommandType;
+import network.common.Command;
+import network.common.CommandType;
 import network.auth.AuthenticationServiceInterface;
-import network.commands.AuthCommand;
-import network.commands.BroadcastMessageCommand;
-import network.commands.PrivateMessageCommand;
+import network.common.commands.AuthCommand;
+import network.common.commands.BroadcastMessageCommand;
+import network.common.commands.PrivateMessageCommand;
 import network.server.models.Server;
 
 import java.io.IOException;
@@ -46,8 +46,6 @@ public class ClientHandler {
       try {
          server.unsubscribe(this);
          server.broadcastMessage(Command.broadcastMessageCommand(name + " вышел из чата"));
-         //         inputStream.close();
-         //         outputStream.close();
          socket.close();
       } catch (IOException e) {
          System.err.println(e.getMessage());
@@ -100,6 +98,22 @@ public class ClientHandler {
     * Метод аутентификации клиента
     */
    private void authentication() throws IOException {
+
+      Thread timeOut = new Thread(() -> {
+         try {
+            Thread.sleep(15000);
+            String errorMessage = "Вышло время авторизации.\nПерезапустите приложение";
+            sendMessage(Command.errorCommand(errorMessage));
+            System.err.println(errorMessage);
+            closeConnection();
+         } catch (InterruptedException e) {
+            System.out.println("Авторизация успешна");
+         } catch (IOException e) {
+            e.printStackTrace();
+         }
+      }, "timeOut");
+      timeOut.start();
+
       while (true) {
          Command command = readCommand();
 
@@ -109,6 +123,7 @@ public class ClientHandler {
 
          if (command.getType() == CommandType.CMD_AUTH) {
             if (processAuthCommand(command)) {
+               timeOut.interrupt();
                return;
             }
          } else {

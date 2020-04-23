@@ -1,6 +1,6 @@
-package network;
+package network.common;
 
-import network.commands.*;
+import network.common.commands.*;
 
 import java.io.Serializable;
 import java.util.List;

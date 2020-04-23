@@ -1,4 +1,4 @@
-package network.commands;
+package network.common.commands;
 
 import java.io.Serializable;
 

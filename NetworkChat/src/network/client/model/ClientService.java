@@ -1,12 +1,12 @@
 package network.client.model;
 
-import network.Command;
+import network.common.Command;
 import network.client.controller.AuthEvent;
 import network.client.controller.ClientController;
-import network.commands.AuthCommand;
-import network.commands.ErrorCommand;
-import network.commands.MessageCommand;
-import network.commands.UpdateUsersListCommand;
+import network.common.commands.AuthCommand;
+import network.common.commands.ErrorCommand;
+import network.common.commands.MessageCommand;
+import network.common.commands.UpdateUsersListCommand;
 
 import java.io.IOException;
 import java.io.ObjectInputStream;
